@@ -8,8 +8,14 @@ int main(int argc, char **argv) {
     socklen_t clientLen;
     struct sockaddr_storage clientAddr;
 
-    signal(SIGINT, ctrlHandler);
-    signal(SIGTERM, stopHandler);
+    /* ctrl + c 信号 */
+    Signal(SIGINT, ctrlHandler);
+    /* clion 发送的停止信号 */
+    Signal(SIGTERM, stopHandler);
+    /* 忽略epipe信号 */
+    Signal(SIGPIPE, SIG_IGN);
+    /* 处理子进程 */
+    Signal(SIGCHLD, childHandler);
 
     parseCmd(argc, argv);
     printConfig();
@@ -22,11 +28,14 @@ int main(int argc, char **argv) {
         clientLen = sizeof(clientAddr);
         connFd = Accept(listenFd, (SA *)&clientAddr, &clientLen);
         Getnameinfo((SA *) &clientAddr, clientLen, hostname, MAXLINE, port, MAXLINE, 0);
-        INFO("Accept connection from (%s, %s)\n", hostname, port);
+        if (VERBOSE) INFO("Accept connection from (%s, %s)\n", hostname, port);
         if (Fork() == 0) {
+            /* 忽略epipe信号 */
+            Signal(SIGPIPE, SIG_IGN);
             Close(listenFd);
             doit(connFd);
             Close(connFd);
+            // DEBUG("exit process: %d", getpid());
             exit(0);
         }
         Close(connFd);

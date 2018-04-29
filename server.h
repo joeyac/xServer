@@ -8,6 +8,8 @@
 #include "csapp.h"
 #include "utils.h"
 
+
+void Im_rio_writen(int fd, void *usrbuf, size_t n);
 void doit(int fd);
 int read_requesthdrs(rio_t *rp, char *method);
 int parse_uri(char *uri, char *filename, char *cgiargs);

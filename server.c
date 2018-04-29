@@ -5,6 +5,18 @@
 #include "server.h"
 #include "utils.h"
 
+
+/* improved rio written, handle EPIPE signal */
+void Im_rio_writen(int fd, void *usrbuf, size_t n) {
+    if (rio_writen(fd, usrbuf, n) != n) {
+        if (errno == EPIPE) {
+            WARN("%s: connection ended by customer.", strerror(errno));
+            exit(0);
+        }
+        unix_error("Rio_writen error");
+    }
+}
+
 /*
  * doit - handle one HTTP request/response transaction
  * 对静态文件有get和head方法
@@ -23,7 +35,8 @@ void doit(int fd)
     Rio_readinitb(&rio, fd);    /* 对rio进行初始化 */
     Rio_readlineb(&rio, buf, MAXLINE);       /* 读取一行数据 */
     sscanf(buf, "%s %s %s", method, uri, version);
-    INFO("%s", buf);
+
+    if (VERBOSE) INFO("%s", buf);
 
     /* strcasecmp 忽略大小写比较字符串， 相等返回0 */
     if (!(strcasecmp(method, "GET") == 0 || strcasecmp(method, "POST") == 0 || strcasecmp(method, "HEAD") == 0)) {
@@ -41,7 +54,7 @@ void doit(int fd)
     /* Decode filename by url_decode from php */
     decode(filename, strlen(filename));
 
-    INFO("Get File Name: %s", filename);
+    INFO("%s: %s", method, filename);
     if (stat(filename, &sbuf) < 0) {
         clienterror(fd, filename, "404", "Not found",
                     "XServer couldn't find this file");
@@ -81,7 +94,7 @@ int read_requesthdrs(rio_t *rp, char *method)
 
     do {
         Rio_readlineb(rp, buf, MAXLINE);
-        INFO("%s", buf);
+        if (VERBOSE) INFO("%s", buf);
         if (strcasecmp(method, "POST") == 0 && strncasecmp(buf, "Content-Length:", 15) == 0)
             sscanf(buf, "Content-Length: %d", &len);
     } while (strcmp(buf, "\r\n"));
@@ -137,7 +150,7 @@ void serve_static(int fd, char *filename, int filesize, char *method)
     sprintf(buf, "%sServer: X Web Server\r\n", buf);
     sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
     sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
-    Rio_writen(fd, buf, strlen(buf));       /* 发送数据给客户端 */
+    Im_rio_writen(fd, buf, strlen(buf));       /* 发送数据给客户端 */
 
     if (strcasecmp(method, "HEAD") == 0)
         return;
@@ -146,7 +159,7 @@ void serve_static(int fd, char *filename, int filesize, char *method)
     srcfd = Open(filename, O_RDONLY, 0); /* 打开文件 */
     srcp = Mmap(0, (size_t) filesize, PROT_READ, MAP_PRIVATE, srcfd, 0); /* 映射到一段虚拟空间 */
     Close(srcfd);                           /* 关闭文件 */
-    Rio_writen(fd, srcp, (size_t) filesize);         /* 发送数据 */
+    Im_rio_writen(fd, srcp, (size_t) filesize);         /* 发送数据 */
     Munmap(srcp, (size_t) filesize);                 /* 解除映射 */
 }
 
@@ -184,15 +197,19 @@ void serve_dynamic(int fd, char *filename, char *cgiargs, char *method)
 
     /* Return first part of HTTP response */
     sprintf(buf, "HTTP/1.0 200 OK\r\n");
-    Rio_writen(fd, buf, strlen(buf));
+    Im_rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "Server: XServer\r\n");
-    Rio_writen(fd, buf, strlen(buf));
+    Im_rio_writen(fd, buf, strlen(buf));
 
     if (Fork() == 0) { /* child */
         /* Real server would set all CGI vars here */
         setenv("QUERY_STRING", cgiargs, 1);
         setenv("REQUEST_METHOD", method, 1);
         Dup2(fd, STDOUT_FILENO);         /* Redirect stdout to client */
+
+        /* 默认操作 */
+        Signal(SIGPIPE, SIG_DFL);
+
         Execve(filename, emptylist, environ); /* Run CGI program */
     }
     Wait(NULL); /* Parent waits for and reaps child */
@@ -217,11 +234,12 @@ void clienterror(int fd, char *cause, char *errnum,
 
     /* Print the HTTP response */
     sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
-    Rio_writen(fd, buf, strlen(buf));
+    Im_rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "Content-type: text/html\r\n");
-    Rio_writen(fd, buf, strlen(buf));
+    Im_rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "Content-length: %d\r\n\r\n", (int)strlen(body));
-    Rio_writen(fd, buf, strlen(buf));
-    Rio_writen(fd, body, strlen(body));
+    Im_rio_writen(fd, buf, strlen(buf));
+    Im_rio_writen(fd, body, strlen(body));
 }
+
 /* $end clienterror */

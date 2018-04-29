@@ -11,6 +11,7 @@
 
 
 /* logger wrappers */
+#define VERBOSE 0
 extern zlog_category_t *zlogCategory;
 void initLogger();
 void testLogger();
@@ -35,6 +36,7 @@ void printConfig();
 /* sig handler functions */
 void ctrlHandler(int a);
 void stopHandler(int a);
+void childHandler(int a);
 
 
 /* path build help function */

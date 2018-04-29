@@ -67,16 +67,24 @@ void printConfig() {
 }
 
 void stopHandler(int a) {
-    INFO("Server has received stop signal.\n");
+    INFO("Server has received stop signal: %d.\n", a);
     zlog_fini();
-    exit(a);
+    exit(0);
 }
 
 void ctrlHandler(int a) {
-    INFO("You have press ctrl+c to exit.\n");
+    INFO("You have press ctrl+c to exit: %d.\n", a);
     zlog_fini();
-    exit(a);
+    exit(0);
 }
+
+void childHandler(int a) {
+    pid_t pid;
+    int stat;
+    while((pid = waitpid(-1, &stat, WNOHANG)) > 0)
+        INFO("%d: kill zombie process: %d", a, pid);
+}
+
 
 void pathJoin(char *filename, char *append) {
     if (strlen(append) == 0) return;
