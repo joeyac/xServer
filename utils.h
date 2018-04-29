@@ -36,4 +36,12 @@ void printConfig();
 void ctrlHandler(int a);
 void stopHandler(int a);
 
+
+/* path build help function */
+void pathJoin(char *filename, char *append);
+
+
+/* url decode function (zh_cn) */
+int decode(char *str, size_t len);
+
 #endif //XSERVER_LOGGER_H

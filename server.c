@@ -7,6 +7,8 @@
 
 /*
  * doit - handle one HTTP request/response transaction
+ * 对静态文件有get和head方法
+ * 对动态文件有get和post和head方法
  */
 /* $begin doit */
 void doit(int fd)
@@ -23,17 +25,23 @@ void doit(int fd)
     sscanf(buf, "%s %s %s", method, uri, version);
     INFO("%s", buf);
 
-    if (!(strcasecmp(method, "GET") == 0 || strcasecmp(method, "POST") == 0)) { /* strcasecmp 忽略大小写比较字符串， 相等返回0 */
+    /* strcasecmp 忽略大小写比较字符串， 相等返回0 */
+    if (!(strcasecmp(method, "GET") == 0 || strcasecmp(method, "POST") == 0 || strcasecmp(method, "HEAD") == 0)) {
         clienterror(fd, method, "501", "Not Implemented",
                     "XServer does not implement this method"); /* 暂时只支持GET POST 方法 */
         return;
     }
     int param_len = read_requesthdrs(&rio, method);
 
-    Rio_readnb(&rio, buf, (size_t) param_len);
+    if (param_len) Rio_readnb(&rio, buf, (size_t) param_len);
 
     /* Parse URI from GET request */
     is_static = parse_uri(uri, filename, cgiargs);
+
+    /* Decode filename by url_decode from php */
+    decode(filename, strlen(filename));
+
+    INFO("Get File Name: %s", filename);
     if (stat(filename, &sbuf) < 0) {
         clienterror(fd, filename, "404", "Not found",
                     "XServer couldn't find this file");
@@ -46,7 +54,7 @@ void doit(int fd)
                         "xServer couldn't read the file");
             return;
         }
-        serve_static(fd, filename, (int) sbuf.st_size);
+        serve_static(fd, filename, (int) sbuf.st_size, method);
     }
     else { /* Serve dynamic content */
         if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)) {
@@ -55,9 +63,9 @@ void doit(int fd)
             return;
         }
         if (strcasecmp(method, "GET") == 0)
-            serve_dynamic(fd, filename, cgiargs);
+            serve_dynamic(fd, filename, cgiargs, method);
         else
-            serve_dynamic(fd, filename, buf);
+            serve_dynamic(fd, filename, buf, method);
     }
 }
 /* $end doit */
@@ -94,7 +102,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
     if (!strstr(uri, "cgi-bin")) {  /* Static content */
         strcpy(cgiargs, "");
         strcpy(filename, config.root);
-        strcat(filename, uri);
+        pathJoin(filename, uri);
         if (uri[strlen(uri)-1] == '/')
             strcat(filename, "index.html");
         return 1;
@@ -118,7 +126,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
  * serve_static - copy a file back to the client
  */
 /* $begin serve_static */
-void serve_static(int fd, char *filename, int filesize)
+void serve_static(int fd, char *filename, int filesize, char *method)
 {
     int srcfd;
     char *srcp, filetype[MAXLINE], buf[MAXBUF];
@@ -130,6 +138,9 @@ void serve_static(int fd, char *filename, int filesize)
     sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
     sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
     Rio_writen(fd, buf, strlen(buf));       /* 发送数据给客户端 */
+
+    if (strcasecmp(method, "HEAD") == 0)
+        return;
 
     /* Send response body to client */
     srcfd = Open(filename, O_RDONLY, 0); /* 打开文件 */
@@ -167,7 +178,7 @@ void get_filetype(char *filename, char *filetype)
  * serve_dynamic - run a CGI program on behalf of the client
  */
 /* $begin serve_dynamic */
-void serve_dynamic(int fd, char *filename, char *cgiargs)
+void serve_dynamic(int fd, char *filename, char *cgiargs, char *method)
 {
     char buf[MAXLINE], *emptylist[] = { NULL };
 
@@ -180,6 +191,7 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
     if (Fork() == 0) { /* child */
         /* Real server would set all CGI vars here */
         setenv("QUERY_STRING", cgiargs, 1);
+        setenv("REQUEST_METHOD", method, 1);
         Dup2(fd, STDOUT_FILENO);         /* Redirect stdout to client */
         Execve(filename, emptylist, environ); /* Run CGI program */
     }

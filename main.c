@@ -23,7 +23,11 @@ int main(int argc, char **argv) {
         connFd = Accept(listenFd, (SA *)&clientAddr, &clientLen);
         Getnameinfo((SA *) &clientAddr, clientLen, hostname, MAXLINE, port, MAXLINE, 0);
         INFO("Accept connection from (%s, %s)\n", hostname, port);
-        doit(connFd);
+        if (Fork() == 0) {
+            doit(connFd);
+            close(connFd);
+            exit(0);
+        }
         close(connFd);
     }
     exit(0);
