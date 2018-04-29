@@ -23,18 +23,20 @@ void doit(int fd)
     sscanf(buf, "%s %s %s", method, uri, version);
     INFO("%s", buf);
 
-    if (strcasecmp(method, "GET")) {    /* strcasecmp 忽略大小写比较字符串， 相等返回0 */
+    if (!(strcasecmp(method, "GET") == 0 || strcasecmp(method, "POST") == 0)) { /* strcasecmp 忽略大小写比较字符串， 相等返回0 */
         clienterror(fd, method, "501", "Not Implemented",
-                    "Tiny does not implement this method"); /* 暂时只支持GET方法 */
+                    "XServer does not implement this method"); /* 暂时只支持GET POST 方法 */
         return;
     }
-    read_requesthdrs(&rio);
+    int param_len = read_requesthdrs(&rio, method);
+
+    Rio_readnb(&rio, buf, (size_t) param_len);
 
     /* Parse URI from GET request */
     is_static = parse_uri(uri, filename, cgiargs);
     if (stat(filename, &sbuf) < 0) {
         clienterror(fd, filename, "404", "Not found",
-                    "Tiny couldn't find this file");
+                    "XServer couldn't find this file");
         return;
     }
 
@@ -52,7 +54,10 @@ void doit(int fd)
                         "xServer couldn't run the CGI program");
             return;
         }
-        serve_dynamic(fd, filename, cgiargs);
+        if (strcasecmp(method, "GET") == 0)
+            serve_dynamic(fd, filename, cgiargs);
+        else
+            serve_dynamic(fd, filename, buf);
     }
 }
 /* $end doit */
@@ -61,15 +66,18 @@ void doit(int fd)
  * read_requesthdrs - read and parse HTTP request headers
  */
 /* $begin read_requesthdrs */
-void read_requesthdrs(rio_t *rp)
+int read_requesthdrs(rio_t *rp, char *method)
 {
     char buf[MAXLINE];
+    int len = 0;
 
-    Rio_readlineb(rp, buf, MAXLINE);
-    while(strcmp(buf, "\r\n")) {
+    do {
         Rio_readlineb(rp, buf, MAXLINE);
         INFO("%s", buf);
-    }
+        if (strcasecmp(method, "POST") == 0 && strncasecmp(buf, "Content-Length:", 15) == 0)
+            sscanf(buf, "Content-Length: %d", &len);
+    } while (strcmp(buf, "\r\n"));
+    return len;
 }
 
 /* $end read_requesthdrs */
@@ -166,7 +174,7 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
     /* Return first part of HTTP response */
     sprintf(buf, "HTTP/1.0 200 OK\r\n");
     Rio_writen(fd, buf, strlen(buf));
-    sprintf(buf, "Server: Tiny Web Server\r\n");
+    sprintf(buf, "Server: XServer\r\n");
     Rio_writen(fd, buf, strlen(buf));
 
     if (Fork() == 0) { /* child */

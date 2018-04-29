@@ -9,7 +9,7 @@
 #include "utils.h"
 
 void doit(int fd);
-void read_requesthdrs(rio_t *rp);
+int read_requesthdrs(rio_t *rp, char *method);
 int parse_uri(char *uri, char *filename, char *cgiargs);
 void serve_static(int fd, char *filename, int filesize);
 void get_filetype(char *filename, char *filetype);
