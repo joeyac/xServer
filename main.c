@@ -24,11 +24,12 @@ int main(int argc, char **argv) {
         Getnameinfo((SA *) &clientAddr, clientLen, hostname, MAXLINE, port, MAXLINE, 0);
         INFO("Accept connection from (%s, %s)\n", hostname, port);
         if (Fork() == 0) {
+            Close(listenFd);
             doit(connFd);
-            close(connFd);
+            Close(connFd);
             exit(0);
         }
-        close(connFd);
+        Close(connFd);
     }
     exit(0);
 }
