@@ -27,20 +27,26 @@ void testLogger() {
 }
 
 void help(char *name) {
-    printf("simple HTTP server by xjw.\n  usage:\n  ./%s -p [port] -r [root_dir] -w [workers] -c [worker_connects]\n", name);
-    puts("  default port is 10000 and root dir is your current working directory.");
-    puts("  default workers is 4 and worker_connects is 1024");
+    printf("simple HTTP server by xjw.\n\tusage: %s -p [port] -r [root_dir] -g [cgi_root_dir] -k [cgi_key] -w [workers] -c [worker_connects]\n",
+           basename(name));
+    puts("\t\tdefault port is 10000 and root dir is your current working directory.");
+    puts("\t\tdefault cgi root dir is \"[root_dir]/cgi-bin/\" and cgi key is \"cgi-bin\", mapped cgi_key/* -> cgi_root/*.");
+    puts("\t\tdefault workers is 4 and worker_connects is 1024.");
     exit(0);
 }
 
 void parseCmd(int argc, char *argv[]) {
     int c;
+    // cgi_key = "cgi-bin"
+    // cgi_key/* -> cgi_root/*
+    config.cgi_key = "cgi-bin";
+    config.cgi_root = "";
     config.root = getenv("PWD");
     config.port = 10000;
     config.workers = 4;
     config.worker_conn = 1024;
     //Parsing the command line arguments
-    while ((c = getopt (argc, argv, "r:p:w:c:")) != -1)
+    while ((c = getopt(argc, argv, "r:p:w:c:g:k:")) != -1)
         switch (c) {
             case 'r':
                 config.root = optarg;
@@ -54,16 +60,44 @@ void parseCmd(int argc, char *argv[]) {
             case 'c':
                 config.worker_conn = atoi(optarg);
                 break;
+            case 'g':
+                config.cgi_root = optarg;
+                break;
+            case 'k':
+                config.cgi_key = optarg;
+                break;
             default:
                 help(argv[0]);
         }
+
+    if (config.cgi_root == "") {
+        char *s = "cgi-bin";
+        char *sn = (char *) malloc(strlen(s) + strlen(config.root));
+        pathJoin(sn, config.root);
+        pathJoin(sn, s);
+        config.cgi_root = sn;
+    }
+    if (*config.root != '/') {
+        char *sn = (char *) malloc(strlen(config.root) + strlen(getenv("PWD")));
+        pathJoin(sn, getenv("PWD"));
+        pathJoin(sn, config.root);
+        config.root = sn;
+    }
+    if (*config.cgi_root != '/') {
+        char *sn = (char *) malloc(strlen(config.cgi_root) + strlen(getenv("PWD")));
+        pathJoin(sn, getenv("PWD"));
+        pathJoin(sn, config.cgi_root);
+        config.cgi_root = sn;
+    }
 }
 
 void printConfig() {
     printf("port: %d\n", config.port);
     printf("root: %s\n", config.root);
+    printf("cgi-root: %s\n", config.cgi_root);
+    printf("cgi-key: %s\n", config.cgi_key);
     printf("workers: %d\n", config.workers);
-    printf("worker_conn: %d\n", config.worker_conn);
+    printf("worker conns: %d\n", config.worker_conn);
 }
 
 void stopHandler(int a) {
@@ -80,7 +114,8 @@ void ctrlHandler(int a) {
 
 void childHandler(int a) {
     int stat;
-    pid_t pid = Wait(&stat);
+    pid_t pid;
+    pid = Wait(&stat);
     if (VERBOSE) INFO("%d: kill zombie process: %d", a, pid);
 }
 
@@ -96,7 +131,7 @@ void pathJoin(char *filename, char *append) {
     } else if (flag == 1) {
         strncat(filename, append, len + 1);
     } else {
-        strcat(filename, (const char *) '/');
+        strcat(filename, (const char *) "/");
         strncat(filename, append, len);
     }
 }

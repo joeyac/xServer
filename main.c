@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
             /* 忽略epipe信号 */
             Signal(SIGPIPE, SIG_IGN);
 
-            /* 处理子进程， 回收动态内容请求僵尸进程 */
+            /* 处理子进程， 回收僵尸进程 */
             Signal(SIGCHLD, childHandler);
 
             Close(listenFd);

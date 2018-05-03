@@ -46,7 +46,7 @@ void doit(int fd)
     }
 
     sscanf(buf, "%s %s %s", method, uri, version);
-    INFO("[%s %s] %s", version, method, uri);
+    INFO("[request %s %s] %s", version, method, uri);
 
     /* strcasecmp 忽略大小写比较字符串， 相等返回0 */
     if (!(strcasecmp(method, "GET") == 0 || strcasecmp(method, "POST") == 0 || strcasecmp(method, "HEAD") == 0)) {
@@ -82,6 +82,7 @@ void doit(int fd)
         serve_static(fd, filename, (int) sbuf.st_size, method, &tt_request, &tm_modify);
     }
     else { /* Serve dynamic content */
+        INFO("[serve dynamic]: %s", filename);
         if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)) {
             clienterror(fd, filename, "403", "Forbidden",
                         "xServer couldn't run the CGI program");
@@ -128,8 +129,9 @@ int read_requesthdrs(rio_t *rp, char *method, tm_t *ti, bool *tm_done)
 int parse_uri(char *uri, char *filename, char *cgiargs)
 {
     char *ptr;
+    char *cgiptr = strstr(uri, config.cgi_key);
 
-    if (!strstr(uri, "cgi-bin")) {  /* Static content */
+    if (cgiptr == NULL) {  /* Static content */
         strcpy(cgiargs, "");
         strcpy(filename, config.root);
         pathJoin(filename, uri);
@@ -145,8 +147,8 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
         }
         else
             strcpy(cgiargs, "");
-        strcpy(filename, config.root);
-        strcat(filename, uri);
+        strcpy(filename, config.cgi_root);
+        strcat(filename, cgiptr + strlen(config.cgi_key));
         return 0;
     }
 }
@@ -178,10 +180,10 @@ void serve_static(int fd, char *filename, int filesize, char *method, time_t *tt
     get_filetype(filename, filetype);
     if (need_update) {
         sprintf(buf, "HTTP/1.0 200 OK\r\n");
-        INFO("response 200: %s: %s, %s", method, filename, modify_time);
+        INFO("[response 200 %s] %s, %s", method, filename, modify_time);
     } else {
         sprintf(buf, "HTTP/1.0 304 OK\r\n");
-        INFO("response 304: %s: %s, %s", method, filename, modify_time);
+        INFO("[response 304 %s] %s, %s", method, filename, modify_time);
     }
 
     sprintf(buf, "%sServer: X Web Server\r\n", buf);
@@ -255,7 +257,8 @@ void serve_dynamic(int fd, char *filename, char *cgiargs, char *method)
 
         Execve(filename, emptylist, environ); /* Run CGI program */
     }
-    Wait(NULL); /* Parent waits for and reaps child */
+    // 这里不再需要wait，因为父进程已经监听了子进程的退出事件
+//    Wait(NULL); /* Parent waits for and reaps child */
 }
 /* $end serve_dynamic */
 

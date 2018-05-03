@@ -6,6 +6,7 @@
 #define XSERVER_LOGGER_H
 
 #include <stdbool.h>
+#include <libgen.h>
 #include "csapp.h"
 #include "zlog.h"
 
@@ -26,6 +27,8 @@ void testLogger();
 typedef struct {
     int port;
     char *root;
+    char *cgi_key;
+    char *cgi_root;
     int workers;
     int worker_conn;
 } Config;
