@@ -34,4 +34,4 @@
 2. 1.1版本增加了对post方法的支持
 3. 1.2版本增加了对http 1.0 的基本支持
 4. 1.3版本增加了多进程并发支持，修复了内存泄露，回收了僵尸进程
-5. TODO: 1.4版本增加Last-Modified/If-Modified-Since的发送和检验，支持浏览器缓存, 动态目录和url映射
+5. 1.4版本增加Last-Modified/If-Modified-Since的发送和检验，支持浏览器缓存, 动态目录和url映射
