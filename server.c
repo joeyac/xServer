@@ -5,6 +5,8 @@
 #include "server.h"
 #include "utils.h"
 
+const char *time_fmt = "%a, %d %b %Y %T %Z";
+
 
 /* improved rio written, handle EPIPE signal */
 void Im_rio_writen(int fd, void *usrbuf, size_t n) {
@@ -29,14 +31,22 @@ void doit(int fd)
     struct stat sbuf;  /* 用于获得文件的信息 */
     char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
     char filename[MAXLINE], cgiargs[MAXLINE];
+    struct tm tm_request, tm_modify;
+    time_t tt_request = 0;
+    bool tm_done;
+
     rio_t rio;
 
     /* Read request line and headers */
     Rio_readinitb(&rio, fd);    /* 对rio进行初始化 */
     Rio_readlineb(&rio, buf, MAXLINE);       /* 读取一行数据 */
-    sscanf(buf, "%s %s %s", method, uri, version);
+    if (strlen(buf) == 0) {
+        if (VERBOSE) WARN("empty request header");
+        return;
+    }
 
-    if (VERBOSE) INFO("%s", buf);
+    sscanf(buf, "%s %s %s", method, uri, version);
+    INFO("[%s %s] %s", version, method, uri);
 
     /* strcasecmp 忽略大小写比较字符串， 相等返回0 */
     if (!(strcasecmp(method, "GET") == 0 || strcasecmp(method, "POST") == 0 || strcasecmp(method, "HEAD") == 0)) {
@@ -44,7 +54,8 @@ void doit(int fd)
                     "XServer does not implement this method"); /* 暂时只支持GET POST 方法 */
         return;
     }
-    int param_len = read_requesthdrs(&rio, method);
+    int param_len = read_requesthdrs(&rio, method, &tm_request, &tm_done);
+    if (tm_done) tt_request = mktime(&tm_request);  // 如果有If-Modified-Since字段
 
     if (param_len) Rio_readnb(&rio, buf, (size_t) param_len);
 
@@ -54,7 +65,7 @@ void doit(int fd)
     /* Decode filename by url_decode from php */
     decode(filename, strlen(filename));
 
-    INFO("%s: %s", method, filename);
+
     if (stat(filename, &sbuf) < 0) {
         clienterror(fd, filename, "404", "Not found",
                     "XServer couldn't find this file");
@@ -67,7 +78,8 @@ void doit(int fd)
                         "xServer couldn't read the file");
             return;
         }
-        serve_static(fd, filename, (int) sbuf.st_size, method);
+        tm_modify = *gmtime(&sbuf.st_mtim.tv_sec);
+        serve_static(fd, filename, (int) sbuf.st_size, method, &tt_request, &tm_modify);
     }
     else { /* Serve dynamic content */
         if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)) {
@@ -87,14 +99,19 @@ void doit(int fd)
  * read_requesthdrs - read and parse HTTP request headers
  */
 /* $begin read_requesthdrs */
-int read_requesthdrs(rio_t *rp, char *method)
+int read_requesthdrs(rio_t *rp, char *method, tm_t *ti, bool *tm_done)
 {
     char buf[MAXLINE];
+    char timeStr[MAXLINE];
     int len = 0;
-
     do {
         Rio_readlineb(rp, buf, MAXLINE);
         if (VERBOSE) INFO("%s", buf);
+        if (strncasecmp(buf, "If-Modified-Since:", 18) == 0) { // 判断是否有If-Modified-Since字段
+            sscanf(buf, "If-Modified-Since: %[^\n]", timeStr);
+            strptime(timeStr, time_fmt, ti);
+            *tm_done = true;
+        }
         if (strcasecmp(method, "POST") == 0 && strncasecmp(buf, "Content-Length:", 15) == 0)
             sscanf(buf, "Content-Length: %d", &len);
     } while (strcmp(buf, "\r\n"));
@@ -139,18 +156,44 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
  * serve_static - copy a file back to the client
  */
 /* $begin serve_static */
-void serve_static(int fd, char *filename, int filesize, char *method)
+void serve_static(int fd, char *filename, int filesize, char *method, time_t *tt_request, tm_t *tm_modify)
 {
     int srcfd;
     char *srcp, filetype[MAXLINE], buf[MAXBUF];
+    char modify_time[MAXLINE];
+    time_t tt_modify;
+    double sec_diff;
+    bool need_update;
+
+    /* construct modify time string */
+    strftime(modify_time, sizeof(modify_time), time_fmt, tm_modify);
+
+    tt_modify = mktime(tm_modify);
+    sec_diff = difftime(*tt_request, tt_modify);
+    /* if request >= modify, 说明没有更改
+       else request < modify, 说明更改过文件了 */
+    need_update = sec_diff < 0;
 
     /* Send response headers to client */
     get_filetype(filename, filetype);
-    sprintf(buf, "HTTP/1.0 200 OK\r\n");
+    if (need_update) {
+        sprintf(buf, "HTTP/1.0 200 OK\r\n");
+        INFO("response 200: %s: %s, %s", method, filename, modify_time);
+    } else {
+        sprintf(buf, "HTTP/1.0 304 OK\r\n");
+        INFO("response 304: %s: %s, %s", method, filename, modify_time);
+    }
+
     sprintf(buf, "%sServer: X Web Server\r\n", buf);
     sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
+    sprintf(buf, "%sLast-Modified: %s\r\n", buf, modify_time);
     sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
     Im_rio_writen(fd, buf, strlen(buf));       /* 发送数据给客户端 */
+
+
+
+    if (!need_update)
+        return;
 
     if (strcasecmp(method, "HEAD") == 0)
         return;
@@ -234,6 +277,7 @@ void clienterror(int fd, char *cause, char *errnum,
 
     /* Print the HTTP response */
     sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
+    WARN("[HTTP/1.0 %s %s] %s: %s", errnum, shortmsg, longmsg, cause);
     Im_rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "Content-type: text/html\r\n");
     Im_rio_writen(fd, buf, strlen(buf));

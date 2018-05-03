@@ -11,7 +11,7 @@
 
 
 /* logger wrappers */
-#define VERBOSE 1
+#define VERBOSE 0
 extern zlog_category_t *zlogCategory;
 void initLogger();
 void testLogger();
