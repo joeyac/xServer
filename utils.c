@@ -79,10 +79,9 @@ void ctrlHandler(int a) {
 }
 
 void childHandler(int a) {
-    pid_t pid;
     int stat;
-    while((pid = waitpid(-1, &stat, WNOHANG)) > 0)
-        INFO("%d: kill zombie process: %d", a, pid);
+    pid_t pid = Wait(&stat);
+    if (VERBOSE) INFO("%d: kill zombie process: %d", a, pid);
 }
 
 

@@ -26,16 +26,12 @@ int main(int argc, char **argv) {
     INFO("Start listen on port: %d", config.port);
     while (1) {
         clientLen = sizeof(clientAddr);
-        connFd = Accept(listenFd, (SA *)&clientAddr, &clientLen);
+        connFd = Accept(listenFd, (SA *) &clientAddr, &clientLen);
         Getnameinfo((SA *) &clientAddr, clientLen, hostname, MAXLINE, port, MAXLINE, 0);
         if (VERBOSE) INFO("Accept connection from (%s, %s)\n", hostname, port);
         if (Fork() == 0) {
             /* 忽略epipe信号 */
             Signal(SIGPIPE, SIG_IGN);
-
-            /* 处理子进程， 回收动态内容请求僵尸进程 */
-            Signal(SIGCHLD, childHandler);
-
             Close(listenFd);
             doit(connFd);
             Close(connFd);
