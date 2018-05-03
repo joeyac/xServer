@@ -14,8 +14,11 @@
 /* logger wrappers */
 #define VERBOSE 0
 extern zlog_category_t *zlogCategory;
+
 void initLogger();
+
 void testLogger();
+
 #define DEBUG(args...) zlog_debug(zlogCategory, args)
 #define INFO(args...) zlog_info(zlogCategory, args)
 #define NOTICE(args...) zlog_notice(zlogCategory, args)
@@ -33,12 +36,16 @@ typedef struct {
     int worker_conn;
 } Config;
 Config config;
+
 void parseCmd(int argc, char *argv[]);
+
 void printConfig();
 
 /* sig handler functions */
 void ctrlHandler(int a);
+
 void stopHandler(int a);
+
 void childHandler(int a);
 
 

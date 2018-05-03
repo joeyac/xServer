@@ -1,5 +1,4 @@
 #include "server.h"
-#include "utils.h"
 
 
 int main(int argc, char **argv) {

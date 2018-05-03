@@ -3,7 +3,6 @@
 //
 
 #include "server.h"
-#include "utils.h"
 
 const char *time_fmt = "%a, %d %b %Y %T %Z";
 
@@ -25,8 +24,7 @@ void Im_rio_writen(int fd, void *usrbuf, size_t n) {
  * 对动态文件有get和post和head方法
  */
 /* $begin doit */
-void doit(int fd)
-{
+void doit(int fd) {
     int is_static;      /* 是否为静态文件 */
     struct stat sbuf;  /* 用于获得文件的信息 */
     char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
@@ -80,8 +78,7 @@ void doit(int fd)
         }
         tm_modify = *gmtime(&sbuf.st_mtim.tv_sec);
         serve_static(fd, filename, (int) sbuf.st_size, method, &tt_request, &tm_modify);
-    }
-    else { /* Serve dynamic content */
+    } else { /* Serve dynamic content */
         INFO("[serve dynamic]: %s", filename);
         if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)) {
             clienterror(fd, filename, "403", "Forbidden",
@@ -100,8 +97,7 @@ void doit(int fd)
  * read_requesthdrs - read and parse HTTP request headers
  */
 /* $begin read_requesthdrs */
-int read_requesthdrs(rio_t *rp, char *method, tm_t *ti, bool *tm_done)
-{
+int read_requesthdrs(rio_t *rp, char *method, tm_t *ti, bool *tm_done) {
     char buf[MAXLINE];
     char timeStr[MAXLINE];
     int len = 0;
@@ -126,8 +122,7 @@ int read_requesthdrs(rio_t *rp, char *method, tm_t *ti, bool *tm_done)
  *             return 0 if dynamic content, 1 if static
  */
 /* $begin parse_uri */
-int parse_uri(char *uri, char *filename, char *cgiargs)
-{
+int parse_uri(char *uri, char *filename, char *cgiargs) {
     char *ptr;
     char *cgiptr = strstr(uri, config.cgi_key);
 
@@ -135,17 +130,15 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
         strcpy(cgiargs, "");
         strcpy(filename, config.root);
         pathJoin(filename, uri);
-        if (uri[strlen(uri)-1] == '/')
+        if (uri[strlen(uri) - 1] == '/')
             strcat(filename, "index.html");
         return 1;
-    }
-    else {  /* Dynamic content */
+    } else {  /* Dynamic content */
         ptr = index(uri, '?');
         if (ptr) {
-            strcpy(cgiargs, ptr+1);
+            strcpy(cgiargs, ptr + 1);
             *ptr = '\0';
-        }
-        else
+        } else
             strcpy(cgiargs, "");
         strcpy(filename, config.cgi_root);
         strcat(filename, cgiptr + strlen(config.cgi_key));
@@ -158,8 +151,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
  * serve_static - copy a file back to the client
  */
 /* $begin serve_static */
-void serve_static(int fd, char *filename, int filesize, char *method, time_t *tt_request, tm_t *tm_modify)
-{
+void serve_static(int fd, char *filename, int filesize, char *method, time_t *tt_request, tm_t *tm_modify) {
     int srcfd;
     char *srcp, filetype[MAXLINE], buf[MAXBUF];
     char modify_time[MAXLINE];
@@ -211,8 +203,7 @@ void serve_static(int fd, char *filename, int filesize, char *method, time_t *tt
 /*
  * get_filetype - derive file type from file name
  */
-void get_filetype(char *filename, char *filetype)
-{
+void get_filetype(char *filename, char *filetype) {
     if (strstr(filename, ".html"))
         strcpy(filetype, "text/html");
     else if (strstr(filename, ".gif"))
@@ -225,7 +216,7 @@ void get_filetype(char *filename, char *filetype)
         strcpy(filetype, "application/x-javascript");
     else if (strstr(filename, ".png"))
         strcpy(filetype, "image/png");
-    else if(strstr(filename, ".mpg") || strstr(filename, ".mp4"))
+    else if (strstr(filename, ".mpg") || strstr(filename, ".mp4"))
         strcpy(filetype, "video/mpg");
     else
         strcpy(filetype, "text/plain");
@@ -236,9 +227,8 @@ void get_filetype(char *filename, char *filetype)
  * serve_dynamic - run a CGI program on behalf of the client
  */
 /* $begin serve_dynamic */
-void serve_dynamic(int fd, char *filename, char *cgiargs, char *method)
-{
-    char buf[MAXLINE], *emptylist[] = { NULL };
+void serve_dynamic(int fd, char *filename, char *cgiargs, char *method) {
+    char buf[MAXLINE], *emptylist[] = {NULL};
 
     /* Return first part of HTTP response */
     sprintf(buf, "HTTP/1.0 200 OK\r\n");
@@ -267,8 +257,7 @@ void serve_dynamic(int fd, char *filename, char *cgiargs, char *method)
  */
 /* $begin clienterror */
 void clienterror(int fd, char *cause, char *errnum,
-                 char *shortmsg, char *longmsg)
-{
+                 char *shortmsg, char *longmsg) {
     char buf[MAXLINE], body[MAXBUF];
 
     /* Build the HTTP response body */
@@ -284,7 +273,7 @@ void clienterror(int fd, char *cause, char *errnum,
     Im_rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "Content-type: text/html\r\n");
     Im_rio_writen(fd, buf, strlen(buf));
-    sprintf(buf, "Content-length: %d\r\n\r\n", (int)strlen(body));
+    sprintf(buf, "Content-length: %d\r\n\r\n", (int) strlen(body));
     Im_rio_writen(fd, buf, strlen(buf));
     Im_rio_writen(fd, body, strlen(body));
 }

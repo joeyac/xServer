@@ -122,7 +122,7 @@ void childHandler(int a) {
 
 void pathJoin(char *filename, char *append) {
     if (strlen(append) == 0) return;
-    int flag = (filename[strlen(filename)-1] == '/') + (append[0] == '/');
+    int flag = (filename[strlen(filename) - 1] == '/') + (append[0] == '/');
     size_t len = strlen(append);
     char *ptr = strstr(append, "?");
     if (ptr) len = (ptr - append) - 1;
@@ -138,12 +138,12 @@ void pathJoin(char *filename, char *append) {
 
 static int php_htoi(char *s) {
     int value, c;
-    c = ((unsigned char *)s)[0];
+    c = ((unsigned char *) s)[0];
     if (isupper(c))
         c = tolower(c);
     value = (c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10) * 16;
 
-    c = ((unsigned char *)s)[1];
+    c = ((unsigned char *) s)[1];
     if (isupper(c))
         c = tolower(c);
     value += c >= '0' && c <= '9' ? c - '0' : c - 'a' + 10;
@@ -154,20 +154,14 @@ int decode(char *str, size_t len) {
     char *dest = str;
     char *data = str;
 
-    while (len--)
-    {
-        if (*data == '+')
-        {
+    while (len--) {
+        if (*data == '+') {
             *dest = ' ';
-        }
-        else if (*data == '%' && len >= 2 && isxdigit((int) *(data + 1)) && isxdigit((int) *(data + 2)))
-        {
+        } else if (*data == '%' && len >= 2 && isxdigit((int) *(data + 1)) && isxdigit((int) *(data + 2))) {
             *dest = (char) php_htoi(data + 1);
             data += 2;
             len -= 2;
-        }
-        else
-        {
+        } else {
             *dest = *data;
         }
         data++;

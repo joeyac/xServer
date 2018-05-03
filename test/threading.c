@@ -11,7 +11,7 @@ void *monitor(void *vargp) {
     redisReply *pRedisReply;
     client = redisConnectWithTimeout("127.0.0.1", 6379, timeout);
     while (1) {
-        pRedisReply = (redisReply*)redisCommand(client, "LLEN %s", "queue");
+        pRedisReply = (redisReply *) redisCommand(client, "LLEN %s", "queue");
         INFO("length: %lld\n", pRedisReply->integer);
         freeReplyObject(pRedisReply);
         Sleep(1);
@@ -26,7 +26,7 @@ void *producer(void *vargp) {
     client = redisConnectWithTimeout("127.0.0.1", 6379, timeout);
     int i = 0;
     while (1) {
-        pRedisReply = (redisReply*)redisCommand(client, "RPUSH %s %d", "queue", i);
+        pRedisReply = (redisReply *) redisCommand(client, "RPUSH %s %d", "queue", i);
         INFO("insert: %d\n", i);
         freeReplyObject(pRedisReply);
         Sleep(1);
@@ -36,13 +36,13 @@ void *producer(void *vargp) {
 
 void *consumer(void *vargp) {
     Pthread_detach(Pthread_self());
-    int id = *(int*)vargp;
+    int id = *(int *) vargp;
     struct timeval timeout = {2, 0};    //2s的超时时间
     redisContext *client;
     redisReply *pRedisReply;
     client = redisConnectWithTimeout("127.0.0.1", 6379, timeout);
     while (1) {
-        pRedisReply = (redisReply*)redisCommand(client, "BLPOP %s 1", "queue");
+        pRedisReply = (redisReply *) redisCommand(client, "BLPOP %s 1", "queue");
         if (pRedisReply->type == REDIS_REPLY_NIL) {
             WARN("empty reply: %s\n", pRedisReply->str);
             //client = redisConnectWithTimeout("127.0.0.1", 6379, timeout);
@@ -74,7 +74,7 @@ int main() {
     redisReply *pRedisReply;
     client = redisConnectWithTimeout("127.0.0.1", 6379, timeout);
     while (1) {
-        pRedisReply = (redisReply*)redisCommand(client, "LLEN %s", "queue");
+        pRedisReply = (redisReply *) redisCommand(client, "LLEN %s", "queue");
         if (pRedisReply->integer >= MAX_QUEUE && cur < MAX_THREADS) {
             for (i = cur + 1; i <= 2 * cur; i++) {
                 Pthread_create(&t[i], NULL, consumer, &i);
