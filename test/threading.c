@@ -3,6 +3,7 @@
 //
 #include "../utils.h"
 #include <hiredis/hiredis.h>
+#include <hiredis/adapters/libevent.h>
 
 void *monitor(void *vargp) {
     Pthread_detach(Pthread_self());

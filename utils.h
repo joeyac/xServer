@@ -5,8 +5,11 @@
 #ifndef XSERVER_LOGGER_H
 #define XSERVER_LOGGER_H
 
+
 #include <stdbool.h>
 #include <libgen.h>
+#include <sched.h>
+#include <sys/sysinfo.h>
 #include "csapp.h"
 #include "zlog.h"
 
@@ -48,6 +51,7 @@ void stopHandler(int a);
 
 void childHandler(int a);
 
+void sgUserHandler(int a);
 
 /* path build help function */
 void pathJoin(char *filename, char *append);
@@ -55,5 +59,8 @@ void pathJoin(char *filename, char *append);
 
 /* url decode function (zh_cn) */
 int decode(char *str, size_t len);
+
+/* bind process to certain CPU */
+void Sched_setaffinity(int cpu_number);
 
 #endif //XSERVER_LOGGER_H

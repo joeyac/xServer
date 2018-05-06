@@ -35,3 +35,30 @@
 3. 1.2版本增加了对http 1.0 的基本支持
 4. 1.3版本增加了多进程并发支持，修复了内存泄露，回收了僵尸进程
 5. 1.4版本增加Last-Modified/If-Modified-Since的发送和检验，支持浏览器缓存, 动态目录和url映射
+6. 2.0版本使用多线程，简单修改了多进程版本，每来一个请求建立一个线程
+7. 2.1版本使用线程池，固定线程数量，生产者消费者模型
+8. 2.2版本使用多进程+线程池,每个进程绑定到一个cpu核心
+
+
+
+## something else
+    想用hiredis的异步命令，发现有一些坑= = 
+    
+    hiredis那个github页面很多东西没有写清楚，如果要使用redis客户端的异步通信，单靠hiredis自带的那几个api是不够的，还需要事件触发库的支持。
+    
+    我选择了事件触发库libevent http://libevent.org/
+    
+    首先去官网上下载需要的libevent库
+    
+    安装命令：
+    
+    ```
+    ./configure
+    sudo make
+    sudo make install
+    sudo ln -s /usr/local/lib/libevent-2.1.so.6 /usr/lib/libevent-2.1.so.6
+    ```
+    
+    https://www.ibm.com/developerworks/cn/aix/library/au-libev/index.html
+
+

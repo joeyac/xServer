@@ -2,6 +2,7 @@
 // Created by xjw on 4/27/18.
 //
 
+#include <sched.h>
 #include "utils.h"
 
 zlog_category_t *zlogCategory;
@@ -69,7 +70,10 @@ void parseCmd(int argc, char *argv[]) {
             default:
                 help(argv[0]);
         }
-
+    if (config.workers > get_nprocs()) {
+        fprintf(stderr, "can not assign worker numbers greater then CPU counts, reset workers=%d\n", get_nprocs());
+        config.workers = get_nprocs();
+    }
     if (config.cgi_root == "") {
         char *s = "cgi-bin";
         char *sn = (char *) malloc(strlen(s) + strlen(config.root));
@@ -100,16 +104,19 @@ void printConfig() {
     printf("worker conns: %d\n", config.worker_conn);
 }
 
-void stopHandler(int a) {
-    INFO("Server has received stop signal: %d.\n", a);
+static void stopAndExit() {
     zlog_fini();
     exit(0);
 }
 
+void stopHandler(int a) {
+    INFO("Server has received stop signal: %d.\n", a);
+    stopAndExit();
+}
+
 void ctrlHandler(int a) {
     INFO("You have press ctrl+c to exit: %d.\n", a);
-    zlog_fini();
-    exit(0);
+    stopAndExit();
 }
 
 void childHandler(int a) {
@@ -117,6 +124,12 @@ void childHandler(int a) {
     pid_t pid;
     pid = Wait(&stat);
     if (VERBOSE) INFO("%d: kill zombie process: %d", a, pid);
+}
+
+void sgUserHandler(int a) {
+    ERROR("[main process] sched set affinity error, send exit signal to others...");
+    kill(0, SIGTERM);
+    stopAndExit();
 }
 
 
@@ -169,4 +182,16 @@ int decode(char *str, size_t len) {
     }
     *dest = '\0';
     return (int) (dest - str);
+}
+
+void Sched_setaffinity(int cpu_number) {
+    cpu_set_t set;
+    CPU_ZERO(&set);
+    CPU_SET(cpu_number, &set);
+    if (sched_setaffinity(0, sizeof(set), &set) < 0) {
+        ERROR("[child process] unable to set affinity of process");
+        kill(getppid(), SIGUSR1);   // 向父进程发送一个自定义信号
+        exit(0);
+    }
+
 }
