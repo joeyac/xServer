@@ -13,6 +13,7 @@
 #define _GNU_SOURCE
 #endif
 #include <time.h>
+#include <netinet/tcp.h>
 #include "csapp.h"
 #include "utils.h"
 

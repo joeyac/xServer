@@ -12,10 +12,25 @@ void Im_rio_writen(int fd, void *usrbuf, size_t n) {
     if (rio_writen(fd, usrbuf, n) != n) {
         if (errno == EPIPE) {
             WARN("%s: connection ended by customer.", strerror(errno));
+            return;
             exit(0);
         }
         unix_error("Rio_writen error");
     }
+}
+
+ssize_t Im_rio_readlineb(rio_t *rp, void *usrbuf, size_t maxlen) {
+    ssize_t rc;
+
+    if ((rc = rio_readlineb(rp, usrbuf, maxlen)) < 0) {
+        if (errno == EAGAIN || errno == EPIPE) {
+            WARN("%s: Im_rio_readlineb ended.", strerror(errno));
+            return -1;
+        }
+
+        unix_error("IM Rio_readlineb error");
+    }
+    return rc;
 }
 
 /*
@@ -24,7 +39,9 @@ void Im_rio_writen(int fd, void *usrbuf, size_t n) {
  * 对动态文件有get和post和head方法
  */
 /* $begin doit */
+
 void doit(int fd) {
+    ssize_t retv;
     int is_static;      /* 是否为静态文件 */
     struct stat sbuf;  /* 用于获得文件的信息 */
     char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
@@ -35,16 +52,44 @@ void doit(int fd) {
 
     rio_t rio;
 
+    struct timeval timeout;
+    timeout.tv_sec = 10;
+    timeout.tv_usec = 0;
+    Setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (char *) &timeout, sizeof(timeout));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (char *) &timeout, sizeof(timeout));
+
+//    int keepalive = 1; // 开启keepalive属性
+//    int keepidle = 5; // 如该连接在60秒内没有任何数据往来,则进行探测
+//    int keepinterval = 5; // 探测时发包的时间间隔为5 秒
+//    int keepcount = 2; // 探测尝试的次数。如果第1次探测包就收到响应了,则后2次的不再发。
+//    setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&keepalive , sizeof(keepalive ));
+//    setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, (void*)&keepidle , sizeof(keepidle ));
+//    setsockopt(fd, SOL_TCP, TCP_KEEPINTVL, (void *)&keepinterval , sizeof(keepinterval ));
+//    setsockopt(fd, SOL_TCP, TCP_KEEPCNT, (void *)&keepcount , sizeof(keepcount ));
+
+
     /* Read request line and headers */
     Rio_readinitb(&rio, fd);    /* 对rio进行初始化 */
-    Rio_readlineb(&rio, buf, MAXLINE);       /* 读取一行数据 */
+//    DEBUG("RIO read first line start: fd %d", fd);
+//    Rio_readlineb(&rio, buf, MAXLINE);       /* 读取一行数据 */
+    retv = Im_rio_readlineb(&rio, buf, MAXLINE);
+//    DEBUG("Im_rio_readlineb: %ld", retv);
+    if (retv == -1)
+        return;
+
+    if (retv == 0) {
+
+//        DEBUG("len: %ld data: %s", strlen(buf), buf);
+        return;
+    }
+
     if (strlen(buf) == 0) {
         if (VERBOSE) WARN("empty request header");
         return;
     }
 
     sscanf(buf, "%s %s %s", method, uri, version);
-    INFO("[request %s %s] %s", version, method, uri);
+    if (VERBOSE) INFO("[request %s %s] %s", version, method, uri);
 
     /* strcasecmp 忽略大小写比较字符串， 相等返回0 */
     if (!(strcasecmp(method, "GET") == 0 || strcasecmp(method, "POST") == 0 || strcasecmp(method, "HEAD") == 0)) {
@@ -53,6 +98,9 @@ void doit(int fd) {
         return;
     }
     int param_len = read_requesthdrs(&rio, method, &tm_request, &tm_done);
+    if (param_len == -1)
+        return;
+
     if (tm_done) tt_request = mktime(&tm_request);  // 如果有If-Modified-Since字段
 
     if (param_len) Rio_readnb(&rio, buf, (size_t) param_len);
@@ -101,9 +149,13 @@ int read_requesthdrs(rio_t *rp, char *method, tm_t *ti, bool *tm_done) {
     char buf[MAXLINE];
     char timeStr[MAXLINE];
     int len = 0;
+    ssize_t retv;
     do {
-        Rio_readlineb(rp, buf, MAXLINE);
-        if (VERBOSE) INFO("%s", buf);
+//        Rio_readlineb(rp, buf, MAXLINE);
+        retv = Im_rio_readlineb(rp, buf, MAXLINE);
+        if (retv == -1) return -1;
+
+        if (VERBOSE >= 2) INFO("%s", buf);
         if (strncasecmp(buf, "If-Modified-Since:", 18) == 0) { // 判断是否有If-Modified-Since字段
             sscanf(buf, "If-Modified-Since: %[^\n]", timeStr);
             strptime(timeStr, time_fmt, ti);
@@ -172,10 +224,10 @@ void serve_static(int fd, char *filename, int filesize, char *method, time_t *tt
     get_filetype(filename, filetype);
     if (need_update) {
         sprintf(buf, "HTTP/1.0 200 OK\r\n");
-        INFO("[response 200 %s] %s, %s", method, filename, modify_time);
+        if (VERBOSE) INFO("[response 200 %s] %s, %s", method, filename, modify_time);
     } else {
         sprintf(buf, "HTTP/1.0 304 OK\r\n");
-        INFO("[response 304 %s] %s, %s", method, filename, modify_time);
+        if (VERBOSE) INFO("[response 304 %s] %s, %s", method, filename, modify_time);
     }
 
     sprintf(buf, "%sServer: X Web Server\r\n", buf);
@@ -192,6 +244,7 @@ void serve_static(int fd, char *filename, int filesize, char *method, time_t *tt
     if (strcasecmp(method, "HEAD") == 0)
         return;
 
+    if (VERBOSE) INFO("read body");
     /* Send response body to client */
     srcfd = Open(filename, O_RDONLY, 0); /* 打开文件 */
     srcp = Mmap(0, (size_t) filesize, PROT_READ, MAP_PRIVATE, srcfd, 0); /* 映射到一段虚拟空间 */

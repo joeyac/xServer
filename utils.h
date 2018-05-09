@@ -53,6 +53,8 @@ void childHandler(int a);
 
 void sgUserHandler(int a);
 
+void registerSignal();
+
 /* path build help function */
 void pathJoin(char *filename, char *append);
 

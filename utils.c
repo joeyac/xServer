@@ -195,3 +195,16 @@ void Sched_setaffinity(int cpu_number) {
     }
 
 }
+
+void registerSignal() {
+    /* ctrl + c 信号 */
+    Signal(SIGINT, ctrlHandler);
+    /* clion 发送的停止信号 */
+    Signal(SIGTERM, stopHandler);
+    /* 忽略epipe信号 */
+//    Signal(SIGPIPE, SIG_IGN);
+    /* 处理子进程 */
+    Signal(SIGCHLD, childHandler);
+    /* 处理子进程信号用户信号1 */
+    Signal(SIGUSR1, sgUserHandler);
+}

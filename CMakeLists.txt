@@ -14,7 +14,7 @@ link_libraries(hiredis)
 add_executable(xServer main.c csapp.h csapp.c server.c server.h utils.c utils.h)
 
 # 多线程xServer, 利用redis做生产者消费者队列，动态控制线程数量
-add_executable(xServer-thread main-thread.c csapp.h csapp.c server.c server.h utils.c utils.h pcbuf.c pcbuf.h)
+add_executable(xServer-thread main-thread.c csapp.h csapp.c server.c server.h utils.c utils.h threadUtils/cbuf.c threadUtils/cbuf.h threadUtils/xthread.h threadUtils/xthread.c)
 
 add_executable(adder web/cgi-bin/adder.c csapp.h csapp.c)
 
