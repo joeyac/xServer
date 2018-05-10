@@ -1,15 +1,16 @@
 //
-// Created by xjw on 5/7/18.
+// Created by xjw on 5/9/18.
 //
 
-#ifndef THREAD_CONTROL_XTHREAD_H
-#define THREAD_CONTROL_XTHREAD_H
+#ifndef XSERVER_XTHREAD_P_H
+#define XSERVER_XTHREAD_P_H
 
-#include <semaphore.h>
-#include <sys/prctl.h>
+
+#include "xbuf_p.h"
 #include "../server.h"
-#include "xbuf.h"
-
+#include <sys/prctl.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 typedef struct {
     pthread_t tid;
@@ -18,14 +19,14 @@ typedef struct {
     volatile int status;
 } xthread_t, *xthread_p;
 
-extern xthread_p mainThread;
 extern xthread_p workers;
+extern pthread_mutexattr_t *pthreadMutexattr;
 extern buf_p queue;
+extern char process_name[64];
 
 void xthread_init(xthread_p thread_p);
 
 void create_thread(xthread_p threads, int st, int ed, void *func, const char *info);  /* [st, ed) */
-void cancel_thread(xthread_p threads, int st, int ed, const char *info);  /* [st, ed) */
 
 void *create_shared_memory(size_t size);
 
@@ -33,10 +34,6 @@ void *create_shared_memory(size_t size);
 #define XTD_CANCELLING  1
 #define XTD_CANCELLED   2
 
-
-void *xproducer(void *vargp);
-
 void *xconsumer(void *vargp);
 
-
-#endif //THREAD_CONTROL_XTHREAD_H
+#endif //XSERVER_XTHREAD_P_H

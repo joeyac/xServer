@@ -7,6 +7,7 @@ buf_p queue;
 pthread_mutex_t mutex_cnt;
 pthread_mutex_t workers_full, workers_empty;
 volatile int workers_cnt = 0;
+void *process_exit_func = NULL;
 
 void usr1(int a);   // double workers or up one worker, signal 10
 void usr2(int a);   // half workers or down one worker, signal 12
@@ -86,12 +87,16 @@ int main(int argc, char **argv) {
     printConfig();
     initLogger();
 
+
+    INFO("multi thread mode");
+
     mainThread = create_shared_memory(sizeof(xthread_t));
     workers = create_shared_memory(config.workers * config.worker_conn * sizeof(xthread_t));
     queue = create_shared_memory(sizeof(buf_t));
 
     /* init buf queue*/
-    buf_init(queue, (size_t) (config.workers * config.worker_conn));
+    queue->buf = create_shared_memory(sizeof(int) * config.buf_queue_size);
+    buf_init(queue, (size_t) (config.buf_queue_size));
 
     /* init signal so that threads can be create */
     Sem_init(&(mainThread[0].closed), 0, 1);

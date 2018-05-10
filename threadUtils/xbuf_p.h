@@ -1,9 +1,9 @@
 //
-// Created by xjw on 5/7/18.
+// Created by xjw on 5/10/18.
 //
 
-#ifndef THREAD_CONTROL_CBUF_H
-#define THREAD_CONTROL_CBUF_H
+#ifndef XSERVER_XBUF_P_H
+#define XSERVER_XBUF_P_H
 
 #include <pthread.h>
 #include <semaphore.h>
@@ -20,10 +20,6 @@ typedef struct {
     sem_t empty;                    /* buf空信号 */
 } buf_t, *buf_p;
 
-#define BUF_EMPTY 0
-#define BUF_MIDDLE 1
-#define BUF_FULL 2
-
 #define LOCK(x) pthread_mutex_lock(&((x)))
 #define UNLOCK(x) pthread_mutex_unlock(&((x)))
 
@@ -33,5 +29,7 @@ void buf_push(buf_p pf, int data);
 
 void buf_pop(buf_p pf, int *data);
 
+extern pthread_mutexattr_t *pthreadMutexattr;
+extern buf_p queue;
 
-#endif //THREAD_CONTROL_CBUF_H
+#endif //XSERVER_XBUF_P_H

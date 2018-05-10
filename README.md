@@ -43,7 +43,35 @@
 7. 2.1版本使用简单线程池，生产者消费者模型, 修复了socket泄露，
 ~~当队列中数据个数大于队列长度一半时增加线程数量到上界，否则减少线程数量到下界~~
 动态调整作用不大，消耗资源并且不现实，事实只需要用队列锁即可
-8. 2.2版本使用 ~~多进程~~ +线程池,每个进程绑定到一个cpu核心
+8. 2.2版本使用 多进程 +线程池,每个进程绑定到一个cpu核心,减少cpu切换，提高效率
+        
+        模型：
+        server运行创建workers数量个子进程，每个子进程创建conns个子线程
+        然后不同的子进程绑定到不同的CPU核心上，减少CPU核心切换开销
+        server主进程同时用来进行accept连接插入队列
+        
+        ！！！accept出来的文件描述符不能在多个进程中共享
+        这个版本无法正常工作
+        
+9. 3.0 版本
+
+        模型：
+           基于2.2进行修改
+           server运行创建workers数量个子进程，这若干个子进程争夺一把全局锁，
+           抢到锁的进程可以accept一个文件描述符进来扔进自己的队列，每个进程派生
+           若干线程去自己的队列中争夺锁然后提供服务
+           
+           主进程通过wait函数等待子进程非正常退出，并重启子进程
+           workers: exit(workers_id)
+           
+           主进程处理信号：
+           ctrl + c 信号: SIGINT
+           stop 信号： SIGTERM
+           
+           父进程退出时向子进程发送 SIGTERM信号，回收资源
+           
+           worker处理信号：
+           stop 信号： SIGTERM
 
 
 
@@ -66,7 +94,21 @@
     ```
     
     https://www.ibm.com/developerworks/cn/aix/library/au-libev/index.html
-
+    
+    zlog 两种配置模式：
+    1. 根据不同类型生成不同文件
+    [rules]
+    
+    my_cat.*                >stdout;
+    
+    my_cat.INFO             "logs/info.%d(%F).log", 2MB * 0 ~ "logs/info.%d(%F).log.#r"
+    my_cat.WARN             "logs/warn.%d(%F).log", 2MB * 0 ~ "logs/warn.%d(%F).log.#r"
+    my_cat.NOTICE             "logs/notice.%d(%F).log", 2MB * 0 ~ "logs/notice.%d(%F).log.#r"
+    
+    2. 每个进程生成一个文件
+    
+    my_cat.*                >stdout;
+    my_cat.*                "logs/%p.%d(%F).log", 2MB * 0 ~ "logs/info.%d(%F).log.#r"
 
 
 ## 压力测试命令
@@ -74,3 +116,6 @@
     wrk -d5 http://127.0.0.1:10000/
     
     ab -n 10000 -c 1000 http://127.0.0.1:10000/
+    
+    --exclude-dir=cmake-build-debug,log
+    --exclude-list-file=csapp.c

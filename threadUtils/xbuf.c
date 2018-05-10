@@ -2,11 +2,10 @@
 // Created by xjw on 5/7/18.
 //
 
-#include "cbuf.h"
+#include "xbuf.h"
 
 
 void buf_init(buf_p pf, size_t n) {
-    pf->buf = Calloc(n, sizeof(int));
     pf->n = n;
     pf->head = pf->tail = 0;
     pthread_mutex_init(&(pf->mutex), NULL);

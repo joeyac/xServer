@@ -1,5 +1,6 @@
 #include "server.h"
 
+void *process_exit_func = NULL;
 
 int main(int argc, char **argv) {
     int listenFd, connFd;
@@ -19,6 +20,8 @@ int main(int argc, char **argv) {
     parseCmd(argc, argv);
     printConfig();
     initLogger();
+
+    INFO("multi process mode");
 
     listenFd = Open_listenfd(config.port);
     //INFO("Start listen on port: %s%d%s", "\033[92m", config.port, "\033[0m");

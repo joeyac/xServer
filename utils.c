@@ -28,11 +28,11 @@ void testLogger() {
 }
 
 void help(char *name) {
-    printf("simple HTTP server by xjw.\n\tusage: %s -p [port] -r [root_dir] -g [cgi_root_dir] -k [cgi_key] -w [workers] -c [worker_connects]\n",
+    printf("simple HTTP server by xjw.\n\tusage: %s -p [port] -r [root_dir] -g [cgi_root_dir] -k [cgi_key] -w [workers] -c [worker_connects] -q [buf_queue_size]\n",
            basename(name));
     puts("\t\tdefault port is 10000 and root dir is your current working directory.");
     puts("\t\tdefault cgi root dir is \"[root_dir]/cgi-bin/\" and cgi key is \"cgi-bin\", mapped cgi_key/* -> cgi_root/*.");
-    puts("\t\tdefault workers is 4 and worker_connects is 1024.");
+    puts("\t\tdefault workers is 4, worker_connects is 1024, buf queue size is 1024");
     exit(0);
 }
 
@@ -46,8 +46,9 @@ void parseCmd(int argc, char *argv[]) {
     config.port = 10000;
     config.workers = 4;
     config.worker_conn = 1024;
+    config.buf_queue_size = 1024;
     //Parsing the command line arguments
-    while ((c = getopt(argc, argv, "r:p:w:c:g:k:")) != -1)
+    while ((c = getopt(argc, argv, "r:p:w:c:g:k:q:")) != -1)
         switch (c) {
             case 'r':
                 config.root = optarg;
@@ -67,6 +68,9 @@ void parseCmd(int argc, char *argv[]) {
             case 'k':
                 config.cgi_key = optarg;
                 break;
+            case 'q':
+                config.buf_queue_size = atoi(optarg);
+                break;
             default:
                 help(argv[0]);
         }
@@ -76,22 +80,32 @@ void parseCmd(int argc, char *argv[]) {
     }
     if (config.cgi_root == "") {
         char *s = "cgi-bin";
-        char *sn = (char *) malloc(strlen(s) + strlen(config.root));
+        char *sn = (char *) Calloc(strlen(s) + strlen(config.root) + 1, sizeof(char));
         pathJoin(sn, config.root);
         pathJoin(sn, s);
         config.cgi_root = sn;
     }
     if (*config.root != '/') {
-        char *sn = (char *) malloc(strlen(config.root) + strlen(getenv("PWD")));
+        char *sn = (char *) Calloc(strlen(config.root) + strlen(getenv("PWD")) + 2, sizeof(char));
         pathJoin(sn, getenv("PWD"));
         pathJoin(sn, config.root);
         config.root = sn;
     }
     if (*config.cgi_root != '/') {
-        char *sn = (char *) malloc(strlen(config.cgi_root) + strlen(getenv("PWD")));
+        char *sn = (char *) Calloc(strlen(config.cgi_root) + strlen(getenv("PWD")) + 2, sizeof(char));
         pathJoin(sn, getenv("PWD"));
         pathJoin(sn, config.cgi_root);
         config.cgi_root = sn;
+    }
+}
+
+void stopAndExit(void *func()) {
+    if (NULL == func) {
+        /* 停止日志 */
+        zlog_fini();
+        exit(0);
+    } else {
+        (*func)();
     }
 }
 
@@ -102,21 +116,17 @@ void printConfig() {
     printf("cgi-key: %s\n", config.cgi_key);
     printf("workers: %d\n", config.workers);
     printf("worker conns: %d\n", config.worker_conn);
-}
-
-static void stopAndExit() {
-    zlog_fini();
-    exit(0);
+    printf("buf queue size: %d\n", config.buf_queue_size);
 }
 
 void stopHandler(int a) {
     INFO("Server has received stop signal: %d.\n", a);
-    stopAndExit();
+    stopAndExit(process_exit_func);
 }
 
 void ctrlHandler(int a) {
     INFO("You have press ctrl+c to exit: %d.\n", a);
-    stopAndExit();
+    stopAndExit(process_exit_func);
 }
 
 void childHandler(int a) {
@@ -129,13 +139,13 @@ void childHandler(int a) {
 void sgUserHandler(int a) {
     ERROR("[main process] sched set affinity error, send exit signal to others...");
     kill(0, SIGTERM);
-    stopAndExit();
+    stopAndExit(process_exit_func);
 }
 
 
 void pathJoin(char *filename, char *append) {
     if (strlen(append) == 0) return;
-    int flag = (filename[strlen(filename) - 1] == '/') + (append[0] == '/');
+    int flag = (strlen(filename) > 0 && filename[strlen(filename) - 1] == '/') + (append[0] == '/');
     size_t len = strlen(append);
     char *ptr = strstr(append, "?");
     if (ptr) len = (ptr - append) - 1;
@@ -189,7 +199,8 @@ void Sched_setaffinity(int cpu_number) {
     CPU_ZERO(&set);
     CPU_SET(cpu_number, &set);
     if (sched_setaffinity(0, sizeof(set), &set) < 0) {
-        ERROR("[child process] unable to set affinity of process");
+        ERROR("[child process] unable to set affinity of process: %d", cpu_number);
+        unix_error("Sched_setaffinity:");
         kill(getppid(), SIGUSR1);   // 向父进程发送一个自定义信号
         exit(0);
     }

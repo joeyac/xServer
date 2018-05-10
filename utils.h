@@ -37,6 +37,7 @@ typedef struct {
     char *cgi_root;
     int workers;
     int worker_conn;
+    int buf_queue_size;
 } Config;
 Config config;
 
@@ -45,6 +46,10 @@ void parseCmd(int argc, char *argv[]);
 void printConfig();
 
 /* sig handler functions */
+extern void *process_exit_func;
+
+void stopAndExit(void *func());
+
 void ctrlHandler(int a);
 
 void stopHandler(int a);
