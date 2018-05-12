@@ -11,7 +11,7 @@ const char *time_fmt = "%a, %d %b %Y %T %Z";
 void Im_rio_writen(int fd, void *usrbuf, size_t n) {
     if (rio_writen(fd, usrbuf, n) != n) {
         if (errno == EPIPE) {
-            WARN("%s: connection ended by customer.", strerror(errno));
+            if (VERBOSE) WARN("%s: connection ended by customer.", strerror(errno));
             return;
             exit(0);
         }
@@ -24,7 +24,7 @@ ssize_t Im_rio_readlineb(rio_t *rp, void *usrbuf, size_t maxlen) {
 
     if ((rc = rio_readlineb(rp, usrbuf, maxlen)) < 0) {
         if (errno == EAGAIN || errno == EPIPE) {
-            WARN("%s: Im_rio_readlineb ended.", strerror(errno));
+            if (VERBOSE) WARN("%s: Im_rio_readlineb ended.", strerror(errno));
             return -1;
         }
 
@@ -45,7 +45,7 @@ void doit(int fd) {
     int is_static;      /* 是否为静态文件 */
     struct stat sbuf;  /* 用于获得文件的信息 */
     char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
-    char filename[MAXLINE], cgiargs[MAXLINE];
+    char filename[MAXLINE], cgiargs[MAXLINE], content_type[MAXLINE], file_type[MAXLINE];
     struct tm tm_request, tm_modify;
     time_t tt_request = 0;
     bool tm_done;
@@ -97,13 +97,16 @@ void doit(int fd) {
                     "XServer does not implement this method"); /* 暂时只支持GET POST 方法 */
         return;
     }
-    int param_len = read_requesthdrs(&rio, method, &tm_request, &tm_done);
+    int param_len = read_requesthdrs(&rio, method, &tm_request, &tm_done, content_type);
     if (param_len == -1)
         return;
 
     if (tm_done) tt_request = mktime(&tm_request);  // 如果有If-Modified-Since字段
 
-    if (param_len) Rio_readnb(&rio, buf, (size_t) param_len);
+    if (param_len) {
+        retv = Rio_readnb(&rio, buf, (size_t) param_len);
+        buf[retv] = '\0';
+    }
 
     /* Parse URI from GET request */
     is_static = parse_uri(uri, filename, cgiargs);
@@ -127,16 +130,17 @@ void doit(int fd) {
         tm_modify = *gmtime(&sbuf.st_mtim.tv_sec);
         serve_static(fd, filename, (int) sbuf.st_size, method, &tt_request, &tm_modify);
     } else { /* Serve dynamic content */
-        INFO("[serve dynamic]: %s", filename);
+        if (VERBOSE) INFO("[serve dynamic]: %s", filename);
         if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)) {
             clienterror(fd, filename, "403", "Forbidden",
                         "xServer couldn't run the CGI program");
             return;
         }
+
         if (strcasecmp(method, "GET") == 0)
-            serve_dynamic(fd, filename, cgiargs, method);
+            serve_dynamic(fd, filename, cgiargs, (unsigned int) param_len, content_type, method);
         else
-            serve_dynamic(fd, filename, buf, method);
+            serve_dynamic(fd, filename, buf, (unsigned int) param_len, content_type, method);
     }
 }
 /* $end doit */
@@ -145,7 +149,7 @@ void doit(int fd) {
  * read_requesthdrs - read and parse HTTP request headers
  */
 /* $begin read_requesthdrs */
-int read_requesthdrs(rio_t *rp, char *method, tm_t *ti, bool *tm_done) {
+int read_requesthdrs(rio_t *rp, char *method, tm_t *ti, bool *tm_done, char *content_type) {
     char buf[MAXLINE];
     char timeStr[MAXLINE];
     int len = 0;
@@ -161,6 +165,10 @@ int read_requesthdrs(rio_t *rp, char *method, tm_t *ti, bool *tm_done) {
             strptime(timeStr, time_fmt, ti);
             *tm_done = true;
         }
+        if (strncasecmp(buf, "Content-Type:", 13) == 0) {
+            sscanf(buf, "Content-Type: %s", content_type);
+        }
+
         if (strcasecmp(method, "POST") == 0 && strncasecmp(buf, "Content-Length:", 15) == 0)
             sscanf(buf, "Content-Length: %d", &len);
     } while (strcmp(buf, "\r\n"));
@@ -172,7 +180,14 @@ int read_requesthdrs(rio_t *rp, char *method, tm_t *ti, bool *tm_done) {
 /*
  * parse_uri - parse URI into filename and CGI args
  *             return 0 if dynamic content, 1 if static
+
+ cgi_key="CGI"
+ cgi_root=/home/qqq/
+ http://localhost:10000/CGI/abc
+ -> /home/qqq/abc
  */
+
+
 /* $begin parse_uri */
 int parse_uri(char *uri, char *filename, char *cgiargs) {
     char *ptr;
@@ -271,6 +286,14 @@ void get_filetype(char *filename, char *filetype) {
         strcpy(filetype, "image/png");
     else if (strstr(filename, ".mpg") || strstr(filename, ".mp4"))
         strcpy(filetype, "video/mpg");
+    else if (strstr(filename, ".svg"))
+        strcpy(filetype, "image/svg+xml");
+    else if (strstr(filename, ".php"))
+        strcpy(filetype, "script/php");
+
+    else if (!strstr(filename, "."))
+        strcpy(filetype, "exe");
+
     else
         strcpy(filetype, "text/plain");
 }
@@ -280,7 +303,10 @@ void get_filetype(char *filename, char *filetype) {
  * serve_dynamic - run a CGI program on behalf of the client
  */
 /* $begin serve_dynamic */
-void serve_dynamic(int fd, char *filename, char *cgiargs, char *method) {
+
+void serve_default_dynamic(int fd, char *filename, char *cgiargs, char *method) {
+
+    /* 原始动态处理方法 */
     char buf[MAXLINE], *emptylist[] = {NULL};
 
     /* Return first part of HTTP response */
@@ -294,12 +320,66 @@ void serve_dynamic(int fd, char *filename, char *cgiargs, char *method) {
         setenv("QUERY_STRING", cgiargs, 1);
         setenv("REQUEST_METHOD", method, 1);
         Dup2(fd, STDOUT_FILENO);         /* Redirect stdout to client */
-
         /* 默认操作 */
         Signal(SIGPIPE, SIG_DFL);
-
         Execve(filename, emptylist, environ); /* Run CGI program */
     }
+}
+
+
+void
+serve_dynamic(int fd, char *filename, char *cgiargs, unsigned int content_length, char *content_type, char *method) {
+    HTTP_HDR req_hdr;
+    /* 初始化 */
+    req_hdr.req_file = req_hdr.content_type = req_hdr.query_str = req_hdr.req_body = NULL;
+
+    /* 构造请求头 */
+    req_hdr.req_file = filename;
+    req_hdr.content_type = content_type;
+
+    req_hdr.content_length = content_length;
+
+    if (strcasecmp(method, "GET") == 0) { //GET
+        req_hdr.method = HTTP_METHOD_GET;
+        req_hdr.query_str = cgiargs;
+    } else { // POST
+        req_hdr.method = HTTP_METHOD_POST;
+        req_hdr.req_body = cgiargs;
+    }
+
+//    printf("method: %d\n", req_hdr.method);
+//    printf("req file: %s\n", req_hdr.req_file);
+//    printf("query str: %s\n", req_hdr.query_str);
+//    printf("content type: %s\n", req_hdr.content_type);
+//    printf("content length: %u\n", req_hdr.content_length);
+//    printf("req body: %s\n", req_hdr.req_body);
+
+    int fpm_fd = open_fpm_sock();               //打开php-fpm socket
+    send_fastcgi(&req_hdr, fpm_fd);              //解析请求到FastCGI标准并向socket发送
+    recv_fastcgi(fd, fpm_fd);                   //从PHP接受解释完成的输出
+    close(fpm_fd);
+
+    /* 原始动态处理方法 */
+//    char buf[MAXLINE], *emptylist[] = {NULL};
+//
+//    /* Return first part of HTTP response */
+//    sprintf(buf, "HTTP/1.0 200 OK\r\n");
+//    Im_rio_writen(fd, buf, strlen(buf));
+//    sprintf(buf, "Server: XServer\r\n");
+//    Im_rio_writen(fd, buf, strlen(buf));
+//
+//    if (Fork() == 0) { /* child */
+//        /* Real server would set all CGI vars here */
+//        setenv("QUERY_STRING", cgiargs, 1);
+//        setenv("REQUEST_METHOD", method, 1);
+//        Dup2(fd, STDOUT_FILENO);         /* Redirect stdout to client */
+//
+//        /* 默认操作 */
+//        Signal(SIGPIPE, SIG_DFL);
+//
+//        Execve(filename, emptylist, environ); /* Run CGI program */
+//    }
+
     // 这里不再需要wait，因为父进程已经监听了子进程的退出事件
 //    Wait(NULL); /* Parent waits for and reaps child */
 }

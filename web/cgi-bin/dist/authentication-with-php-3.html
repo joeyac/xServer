@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Hello VuePress | 实现账号登陆认证 3-使用中间件 Middleware</title>
+    <meta name="description" content="Just playing around">
+
+
+    <link rel="preload" href="/assets/css/5.styles.cc10635c.css" as="style">
+    <link rel="preload" href="/assets/js/app.26f6b129.js" as="script">
+    <link rel="preload" href="/assets/js/0.06cf035d.js" as="script">
+    <link rel="prefetch" href="/assets/js/1.24fb37b0.js">
+    <link rel="prefetch" href="/assets/js/2.c891dd57.js">
+    <link rel="prefetch" href="/assets/js/3.57cace51.js">
+    <link rel="prefetch" href="/assets/js/4.2fc96a3b.js">
+    <link rel="stylesheet" href="/assets/css/5.styles.cc10635c.css">
+</head>
+<body>
+<div id="app" data-server-rendered="true">
+    <div class="theme-container">
+        <header class="navbar">
+            <div class="sidebar-button">
+                <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" viewBox="0 0 448 512"
+                     class="icon">
+                    <path fill="currentColor"
+                          d="M436 124H12c-6.627 0-12-5.373-12-12V80c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12zm0 160H12c-6.627 0-12-5.373-12-12v-32c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12zm0 160H12c-6.627 0-12-5.373-12-12v-32c0-6.627 5.373-12 12-12h424c6.627 0 12 5.373 12 12v32c0 6.627-5.373 12-12 12z"></path>
+                </svg>
+            </div>
+            <a href="/" class="home-link router-link-active"><!----><span class="site-name">
+      Hello VuePress
+    </span></a>
+            <div class="links">
+                <div class="search-box"><input aria-label="Search" autocomplete="off" spellcheck="false" value="">
+                    <!----></div>
+                <nav class="nav-links can-hide">
+                    <div class="nav-item"><a href="/" class="nav-link">Home</a></div>
+                    <div class="nav-item"><a href="/" class="nav-link">Guide</a></div>
+                    <div class="nav-item"><a href="https://google.com" target="_blank" rel="noopener noreferrer"
+                                             class="nav-link">External</a></div>
+                    <a href="https://github.com/abowloflrf/c-server" target="_blank" rel="noopener noreferrer"
+                       class="repo-link">
+                        GitHub
+                        <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100"
+                             width="15" height="15" class="icon outbound">
+                            <path fill="currentColor"
+                                  d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path>
+                            <polygon fill="currentColor"
+                                     points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon>
+                        </svg>
+                    </a></nav>
+            </div>
+        </header>
+        <div class="sidebar-mask"></div>
+        <div class="sidebar">
+            <nav class="nav-links">
+                <div class="nav-item"><a href="/" class="nav-link">Home</a></div>
+                <div class="nav-item"><a href="/" class="nav-link">Guide</a></div>
+                <div class="nav-item"><a href="https://google.com" target="_blank" rel="noopener noreferrer"
+                                         class="nav-link">External</a></div>
+                <a href="https://github.com/abowloflrf/c-server" target="_blank" rel="noopener noreferrer"
+                   class="repo-link">
+                    GitHub
+                    <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100"
+                         width="15" height="15" class="icon outbound">
+                        <path fill="currentColor"
+                              d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path>
+                        <polygon fill="currentColor"
+                                 points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon>
+                    </svg>
+                </a></nav>
+            <ul class="sidebar-links">
+                <li><a href="/authentication-with-php-0.html" class="sidebar-link">开始使用 Slim</a></li>
+                <li><a href="/authentication-with-php-1.html" class="sidebar-link">使用 Eloquent ORM 与 Twig</a></li>
+                <li><a href="/authentication-with-php-2.html" class="sidebar-link">基本 Session 认证</a></li>
+                <li><a href="/authentication-with-php-3.html" class="active sidebar-link">使用中间件 Middleware</a>
+                    <ul class="sidebar-sub-headers">
+                        <li class="sidebar-sub-header"><a href="/authentication-with-php-3.html#重构认证类"
+                                                          class="sidebar-link">重构认证类</a></li>
+                        <li class="sidebar-sub-header"><a href="/authentication-with-php-3.html#创建中间件"
+                                                          class="sidebar-link">创建中间件</a></li>
+                        <li class="sidebar-sub-header"><a href="/authentication-with-php-3.html#注册中间件"
+                                                          class="sidebar-link">注册中间件</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <div class="page">
+            <div class="content"><h1 id="实现账号登陆认证-3-使用中间件-middleware"><a href="#实现账号登陆认证-3-使用中间件-middleware"
+                                                                         aria-hidden="true" class="header-anchor">#</a>
+                实现账号登陆认证 3-使用中间件 Middleware</h1>
+                <p></p>
+                <div class="table-of-contents">
+                    <ul>
+                        <li><a href="#重构认证类">重构认证类</a></li>
+                        <li><a href="#创建中间件">创建中间件</a></li>
+                        <li><a href="#注册中间件">注册中间件</a></li>
+                    </ul>
+                </div>
+                <p></p>
+                <p>何谓中间件？正如名字一样，其作用与一个一个 HTTP 请求传递到应用与处理这个请求之间，以过滤 HTTP 请求。就像用户登录后访问<code>/home</code>个人页面一样，只有已经登陆的用户才能够访问这个页面，否则会被跳转到登陆页面。
+                </p>
+                <p>中间件可以单独为某条路由注册，或者对于整个应用全局注册。当一个请求传递到服务器时，根据在代码中注册中间件的先后顺序。最后面定义的中间件会被最先处理。</p>
+                <h2 id="重构认证类"><a href="#重构认证类" aria-hidden="true" class="header-anchor">#</a> 重构认证类</h2>
+                <p>在编写中间件之前，首先需要将认证用户的方式整理一下。在前面是直接使用<code>$_SESSION</code>这个魔术变量来判定用户是否登陆，以及判断登陆的用户究竟是谁，这些有关认证的操作在各个
+                    Controller 中都有可能被频繁使用到。可以编写一个<code>Auth</code>类来处理与认证相关的逻辑：</p>
+                <p>新建<code>src/Auth/Auth.php</code>，类中根据整理有这些静态方法：</p>
+                <ol>
+                    <li>attempt 验证密码并登陆，写入 session</li>
+                    <li>check 检查已经登陆</li>
+                    <li>user 返回已经登陆的用户</li>
+                    <li>guest 检查是否为未登录的游客</li>
+                    <li>logout 注销当前登陆，销毁 session</li>
+                </ol>
+                <pre class="language-php"><code><span class="token php language-php"><span
+                        class="token delimiter important">&lt;?php</span>
+<span class="token keyword">namespace</span> <span class="token package">App<span class="token punctuation">\</span>Auth</span><span
+                            class="token punctuation">;</span>
+
+<span class="token keyword">use</span> <span class="token package">App<span
+                            class="token punctuation">\</span>Models<span
+                            class="token punctuation">\</span>User</span><span class="token punctuation">;</span>
+
+<span class="token keyword">class</span> <span class="token class-name">Auth</span>
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">static</span> <span class="token keyword">function</span> <span
+                            class="token function">attempt</span><span class="token punctuation">(</span><span
+                            class="token variable">$email</span><span class="token punctuation">,</span> <span
+                            class="token variable">$password</span><span class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token variable">$user</span> <span class="token operator">=</span> User<span
+                            class="token punctuation">:</span><span class="token punctuation">:</span><span
+                            class="token function">where</span><span class="token punctuation">(</span><span
+                            class="token single-quoted-string string">'email'</span><span
+                            class="token punctuation">,</span> <span class="token variable">$email</span><span
+                            class="token punctuation">)</span><span class="token operator">-</span><span
+                            class="token operator">&gt;</span><span class="token function">first</span><span
+                            class="token punctuation">(</span><span class="token punctuation">)</span><span
+                            class="token punctuation">;</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span><span
+                            class="token operator">!</span><span class="token variable">$user</span><span
+                            class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token comment">//user do not exist</span>
+            <span class="token keyword">return</span> <span class="token boolean">false</span><span
+                            class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token function">password_verify</span><span
+                            class="token punctuation">(</span><span class="token variable">$password</span><span
+                            class="token punctuation">,</span> <span class="token variable">$user</span><span
+                            class="token operator">-</span><span class="token operator">&gt;</span><span
+                            class="token property">password</span><span class="token punctuation">)</span><span
+                            class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token comment">//password passed, write into session</span>
+            <span class="token function">session_regenerate_id</span><span class="token punctuation">(</span><span
+                            class="token boolean">true</span><span class="token punctuation">)</span><span
+                            class="token punctuation">;</span>
+            <span class="token variable">$_SESSION</span> <span class="token operator">=</span> <span
+                            class="token keyword">array</span><span class="token punctuation">(</span><span
+                            class="token punctuation">)</span><span class="token punctuation">;</span>
+            <span class="token variable">$_SESSION</span><span class="token punctuation">[</span><span
+                            class="token single-quoted-string string">'user_id'</span><span
+                            class="token punctuation">]</span> <span class="token operator">=</span> <span
+                            class="token variable">$user</span><span class="token operator">-</span><span
+                            class="token operator">&gt;</span><span class="token property">id</span><span
+                            class="token punctuation">;</span>
+            <span class="token variable">$_SESSION</span><span class="token punctuation">[</span><span
+                            class="token single-quoted-string string">'user_name'</span><span class="token punctuation">]</span> <span
+                            class="token operator">=</span> <span class="token variable">$user</span><span
+                            class="token operator">-</span><span class="token operator">&gt;</span><span
+                            class="token property">name</span><span class="token punctuation">;</span>
+            <span class="token variable">$_SESSION</span><span class="token punctuation">[</span><span
+                            class="token single-quoted-string string">'user_email'</span><span
+                            class="token punctuation">]</span> <span class="token operator">=</span> <span
+                            class="token variable">$user</span><span class="token operator">-</span><span
+                            class="token operator">&gt;</span><span class="token property">email</span><span
+                            class="token punctuation">;</span>
+            <span class="token variable">$_SESSION</span><span class="token punctuation">[</span><span
+                            class="token single-quoted-string string">'user_logged_in'</span><span
+                            class="token punctuation">]</span> <span class="token operator">=</span> <span
+                            class="token boolean">true</span><span class="token punctuation">;</span>
+
+            <span class="token keyword">return</span> <span class="token boolean">true</span><span
+                            class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+        <span class="token keyword">return</span> <span class="token boolean">false</span><span
+                            class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">public</span> <span class="token keyword">static</span> <span class="token keyword">function</span> <span
+                            class="token function">check</span><span class="token punctuation">(</span><span
+                            class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">return</span> <span class="token function">isset</span><span
+                            class="token punctuation">(</span><span class="token variable">$_SESSION</span><span
+                            class="token punctuation">[</span><span class="token single-quoted-string string">'user_logged_in'</span><span
+                            class="token punctuation">]</span><span class="token punctuation">)</span><span
+                            class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">public</span> <span class="token keyword">static</span> <span class="token keyword">function</span> <span
+                            class="token function">user</span><span class="token punctuation">(</span><span
+                            class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span><span
+                            class="token function">isset</span><span class="token punctuation">(</span><span
+                            class="token variable">$_SESSION</span><span class="token punctuation">[</span><span
+                            class="token single-quoted-string string">'user_id'</span><span
+                            class="token punctuation">]</span><span class="token punctuation">)</span><span
+                            class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">return</span> User<span class="token punctuation">:</span><span
+                            class="token punctuation">:</span><span class="token function">find</span><span
+                            class="token punctuation">(</span><span class="token variable">$_SESSION</span><span
+                            class="token punctuation">[</span><span
+                            class="token single-quoted-string string">'user_id'</span><span
+                            class="token punctuation">]</span><span class="token punctuation">)</span><span
+                            class="token punctuation">;</span>
+        <span class="token punctuation">}</span> <span class="token keyword">else</span> <span
+                            class="token punctuation">{</span>
+            <span class="token keyword">return</span> <span class="token keyword">null</span><span
+                            class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">public</span> <span class="token keyword">static</span> <span class="token keyword">function</span> <span
+                            class="token function">guest</span><span class="token punctuation">(</span><span
+                            class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span><span
+                            class="token function">isset</span><span class="token punctuation">(</span><span
+                            class="token variable">$_SESSION</span><span class="token punctuation">[</span><span
+                            class="token single-quoted-string string">'user_logged_in'</span><span
+                            class="token punctuation">]</span><span class="token punctuation">)</span><span
+                            class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">return</span> <span class="token boolean">false</span><span
+                            class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+        <span class="token keyword">return</span> <span class="token boolean">true</span><span
+                            class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">public</span> <span class="token keyword">static</span> <span class="token keyword">function</span> <span
+                            class="token function">logout</span><span class="token punctuation">(</span><span
+                            class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token function">session_destroy</span><span class="token punctuation">(</span><span
+                            class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</span></code></pre>
+                <p>编写完后，可以在应用中使用<code>Auth::check()</code>来验证用户是否已经登陆等等方法。</p>
+                <h2 id="创建中间件"><a href="#创建中间件" aria-hidden="true" class="header-anchor">#</a> 创建中间件</h2>
+                <p>首先和 Controller 一样先定义一个 BaseMiddleware 以注入 Container</p>
+                <p>然后创建<code>src/Middleware/AuthMiddleware.php</code>中间件：</p>
+                <pre class="language-php"><code><span class="token php language-php"><span
+                        class="token delimiter important">&lt;?php</span>
+<span class="token keyword">namespace</span> <span class="token package">App<span class="token punctuation">\</span>Middleware</span><span
+                            class="token punctuation">;</span>
+
+<span class="token keyword">use</span> <span class="token package">App<span class="token punctuation">\</span>Auth<span
+                            class="token punctuation">\</span>Auth</span><span class="token punctuation">;</span>
+
+<span class="token comment">// AuthMiddle 只允许已经登陆的用户通过，否则跳转到login</span>
+<span class="token keyword">class</span> <span class="token class-name">AuthMiddleware</span> <span
+                            class="token keyword">extends</span> <span class="token class-name">Middleware</span>
+<span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">function</span> <span class="token function">__invoke</span><span
+                            class="token punctuation">(</span><span class="token variable">$request</span><span
+                            class="token punctuation">,</span> <span class="token variable">$response</span><span
+                            class="token punctuation">,</span> <span class="token variable">$next</span><span
+                            class="token punctuation">)</span>
+    <span class="token punctuation">{</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span>Auth<span
+                            class="token punctuation">:</span><span class="token punctuation">:</span><span
+                            class="token function">guest</span><span class="token punctuation">(</span><span
+                            class="token punctuation">)</span><span class="token punctuation">)</span> <span
+                            class="token punctuation">{</span>
+            <span class="token keyword">return</span> <span class="token variable">$response</span><span
+                            class="token operator">-</span><span class="token operator">&gt;</span><span
+                            class="token function">withRedirect</span><span class="token punctuation">(</span><span
+                            class="token single-quoted-string string">'/login'</span><span
+                            class="token punctuation">,</span> <span class="token number">301</span><span
+                            class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+        <span class="token variable">$response</span> <span class="token operator">=</span> <span
+                            class="token variable">$next</span><span class="token punctuation">(</span><span
+                            class="token variable">$request</span><span class="token punctuation">,</span> <span
+                            class="token variable">$response</span><span class="token punctuation">)</span><span
+                            class="token punctuation">;</span>
+        <span class="token keyword">return</span> <span class="token variable">$response</span><span
+                            class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</span></code></pre>
+                <p>Slim 框架的中间件的关键部分是<code>__invoke</code>方法，代码中的意义也很明晰，这个中间件被处理时，先判断用户是否登陆，若未登陆，则跳转到<code>/login</code>，否则放行这个请求。
+                </p>
+                <h2 id="注册中间件"><a href="#注册中间件" aria-hidden="true" class="header-anchor">#</a> 注册中间件</h2>
+                <p>
+                    现在编写了两个中间件，一个是<code>GuestMiddleware</code>只允许游客访问，为<strong>注册登陆</strong>路由注册，另一个是<code>AuthMiddleware</code>至允许已经登陆的用户访问，为<strong>个人主页、注销</strong>路由注册
+                </p>
+                <pre class="language-php"><code><span class="token comment">//未登录的游客才可访问的路由</span>
+<span class="token variable">$app</span><span class="token operator">-</span><span
+                            class="token operator">&gt;</span><span class="token function">group</span><span
+                            class="token punctuation">(</span><span
+                            class="token single-quoted-string string">''</span><span class="token punctuation">,</span> <span
+                            class="token keyword">function</span> <span class="token punctuation">(</span><span
+                            class="token punctuation">)</span> <span class="token punctuation">{</span>
+    <span class="token variable">$this</span><span class="token operator">-</span><span
+                            class="token operator">&gt;</span><span class="token function">get</span><span
+                            class="token punctuation">(</span><span
+                            class="token single-quoted-string string">'/login'</span><span
+                            class="token punctuation">,</span> <span class="token single-quoted-string string">'\App\Controller\LoginController:showLoginForm'</span><span
+                            class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token variable">$this</span><span class="token operator">-</span><span
+                            class="token operator">&gt;</span><span class="token function">get</span><span
+                            class="token punctuation">(</span><span class="token single-quoted-string string">'/register'</span><span
+                            class="token punctuation">,</span> <span class="token single-quoted-string string">'\App\Controller\RegisterController:showRegisterForm'</span><span
+                            class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token variable">$this</span><span class="token operator">-</span><span
+                            class="token operator">&gt;</span><span class="token function">post</span><span
+                            class="token punctuation">(</span><span
+                            class="token single-quoted-string string">'/login'</span><span
+                            class="token punctuation">,</span> <span class="token single-quoted-string string">'\App\Controller\LoginController:handleLogin'</span><span
+                            class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token variable">$this</span><span class="token operator">-</span><span
+                            class="token operator">&gt;</span><span class="token function">post</span><span
+                            class="token punctuation">(</span><span class="token single-quoted-string string">'/register'</span><span
+                            class="token punctuation">,</span> <span class="token single-quoted-string string">'\App\Controller\RegisterController:handleRegister'</span><span
+                            class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span
+                            class="token operator">-</span><span class="token operator">&gt;</span><span
+                            class="token function">add</span><span class="token punctuation">(</span><span
+                            class="token keyword">new</span> <span class="token class-name"><span
+                            class="token punctuation">\</span>App<span class="token punctuation">\</span>Middleware<span
+                            class="token punctuation">\</span>GuestMiddleware</span><span
+                            class="token punctuation">(</span><span class="token variable">$app</span><span
+                            class="token operator">-</span><span class="token operator">&gt;</span><span
+                            class="token function">getContainer</span><span class="token punctuation">(</span><span
+                            class="token punctuation">)</span><span class="token punctuation">)</span><span
+                            class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">//已经登陆的用户才可以访问的路由</span>
+<span class="token variable">$app</span><span class="token operator">-</span><span
+                            class="token operator">&gt;</span><span class="token function">group</span><span
+                            class="token punctuation">(</span><span
+                            class="token single-quoted-string string">''</span><span class="token punctuation">,</span> <span
+                            class="token keyword">function</span> <span class="token punctuation">(</span><span
+                            class="token punctuation">)</span> <span class="token punctuation">{</span>
+    <span class="token variable">$this</span><span class="token operator">-</span><span
+                            class="token operator">&gt;</span><span class="token function">post</span><span
+                            class="token punctuation">(</span><span
+                            class="token single-quoted-string string">'/logout'</span><span
+                            class="token punctuation">,</span> <span class="token single-quoted-string string">'\App\Controller\LoginController:logout'</span><span
+                            class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token variable">$this</span><span class="token operator">-</span><span
+                            class="token operator">&gt;</span><span class="token function">get</span><span
+                            class="token punctuation">(</span><span
+                            class="token single-quoted-string string">'/home'</span><span
+                            class="token punctuation">,</span> <span class="token single-quoted-string string">'\App\Controller\HomeController:index'</span><span
+                            class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span
+                            class="token operator">-</span><span class="token operator">&gt;</span><span
+                            class="token function">add</span><span class="token punctuation">(</span><span
+                            class="token keyword">new</span> <span class="token class-name"><span
+                            class="token punctuation">\</span>App<span class="token punctuation">\</span>Middleware<span
+                            class="token punctuation">\</span>AuthMiddleware</span><span
+                            class="token punctuation">(</span><span class="token variable">$app</span><span
+                            class="token operator">-</span><span class="token operator">&gt;</span><span
+                            class="token function">getContainer</span><span class="token punctuation">(</span><span
+                            class="token punctuation">)</span><span class="token punctuation">)</span><span
+                            class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre>
+                <p>注册完毕后已经登陆的用户就无法访问注册登陆页面了否则会跳转到自己的个人主页。同样的未登陆的用户也无法访问个人主页和注销请求，否则跳转到登陆页面。</p></div><!---->
+            <div class="content page-nav"><p class="inner"><span class="prev">
+        ← <a href="/authentication-with-php-2.html" class="prev">
+          基本 Session 认证
+        </a></span><!----></p></div>
+        </div>
+    </div>
+</div>
+<script src="/assets/js/0.06cf035d.js" defer></script>
+<script src="/assets/js/app.26f6b129.js" defer></script>
+</body>
+</html>

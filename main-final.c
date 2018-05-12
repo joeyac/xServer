@@ -172,7 +172,13 @@ void exitMain() {
         kill(process_id[i], SIGTERM);
     }
     int st;
-    while (wait(&st) >= 0); // 等待所有子进程退出
+    pid_t exit_pid;
+
+    //Sleep(10); // 等待所有子进程退出
+    while ((exit_pid = wait(&st)) >= 0) {
+        INFO("exit process: %d", exit_pid);
+    }
+
 
     /* 释放malloc内存 */
     INFO("release memory of malloc");
